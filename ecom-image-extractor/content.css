@@ -1,0 +1,83 @@
+/* 电商图片提取下载器 —— 悬浮按钮与轻提示样式
+   所有选择器都带 eie- 前缀，关键属性加 !important，
+   避免被淘宝/京东等宿主页面的全局样式覆盖。 */
+
+#eie-floating-btn {
+  position: fixed !important;
+  right: 24px !important;
+  bottom: 24px !important;
+  z-index: 2147483000 !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  padding: 12px 20px !important;
+  border: none !important;
+  border-radius: 999px !important;
+  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  line-height: 1 !important;
+  color: #fff !important;
+  cursor: pointer !important;
+  background: linear-gradient(135deg, #8b5cf6, #6d28d9) !important;
+  box-shadow: 0 8px 24px rgba(109, 40, 217, 0.38) !important;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, opacity 0.2s ease !important;
+  -webkit-user-select: none !important;
+  user-select: none !important;
+}
+
+#eie-floating-btn:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 12px 30px rgba(109, 40, 217, 0.48) !important;
+}
+
+#eie-floating-btn:active {
+  transform: translateY(0) scale(0.98) !important;
+}
+
+/* 忙碌态：禁止重复点击 */
+#eie-floating-btn[data-busy="1"] {
+  opacity: 0.8 !important;
+  cursor: progress !important;
+}
+
+#eie-floating-btn .eie-spin {
+  width: 14px !important;
+  height: 14px !important;
+  border-radius: 50% !important;
+  border: 2px solid rgba(255, 255, 255, 0.45) !important;
+  border-top-color: #fff !important;
+  animation: eie-spin 0.7s linear infinite !important;
+}
+
+@keyframes eie-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#eie-toast {
+  position: fixed !important;
+  right: 24px !important;
+  bottom: 88px !important;
+  z-index: 2147483000 !important;
+  max-width: 320px !important;
+  padding: 12px 16px !important;
+  border-radius: 12px !important;
+  font-family: system-ui, -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif !important;
+  font-size: 13px !important;
+  line-height: 1.6 !important;
+  color: #1f2937 !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  border: 1px solid rgba(124, 58, 237, 0.25) !important;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.16) !important;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.25s ease, transform 0.25s ease;
+  pointer-events: none !important;
+}
+
+#eie-toast.eie-show {
+  opacity: 1;
+  transform: none;
+}

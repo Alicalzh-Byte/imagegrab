@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>商品图片预览 · 电商图片提取下载器</title>
+    <link rel="stylesheet" href="gallery.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="topbar-left">
+        <h1>商品图片预览</h1>
+        <p class="meta" id="pageMeta">正在读取提取结果…</p>
+      </div>
+
+      <div class="topbar-actions">
+        <label class="check-all">
+          <input type="checkbox" id="checkAll" />
+          <span>全选</span>
+        </label>
+        <button type="button" class="btn ghost" id="btnInvert">反选</button>
+        <span class="count" id="countInfo">已选 0 / 共 0</span>
+        <button type="button" class="btn primary" id="btnDownload" disabled>下载选中</button>
+      </div>
+    </header>
+
+    <div class="progress-wrap" id="progressWrap" hidden>
+      <div class="progress-bar"><span id="progressFill"></span></div>
+      <div class="progress-text" id="progressText"></div>
+    </div>
+
+    <div class="summary" id="summary" hidden></div>
+
+    <main class="grid" id="grid"></main>
+
+    <div class="empty" id="emptyState" hidden>
+      <p class="empty-title">还没有提取到图片</p>
+      <p class="empty-sub">
+        请前往淘宝 / 天猫 / 京东 / 拼多多商家版的商品详情页，点击页面右下角的「获取图片」按钮。
+      </p>
+    </div>
+
+    <footer class="footer">
+      下载统一转换为 PNG 格式；若个别图片无法转码（跨域或格式不支持），会自动回退为按原始地址下载。
+    </footer>
+
+    <script src="gallery.js"></script>
+  </body>
+</html>

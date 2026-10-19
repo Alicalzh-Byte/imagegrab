@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>提取逻辑自测 · 电商图片提取下载器</title>
+    <style>
+      body {
+        margin: 0;
+        padding: 20px 24px 60px;
+        font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+        background: #f7f7fa;
+        color: #1d1d1f;
+      }
+      h1 {
+        font-size: 18px;
+        margin: 0 0 6px;
+      }
+      .hint {
+        font-size: 12.5px;
+        color: #86868b;
+        margin: 0 0 16px;
+      }
+      #verdict {
+        padding: 12px 16px;
+        border-radius: 10px;
+        font-size: 14px;
+        font-weight: 600;
+        margin-bottom: 16px;
+      }
+      #verdict.pass {
+        background: #e7f6ec;
+        color: #166534;
+      }
+      #verdict.fail {
+        background: #fdecec;
+        color: #b91c1c;
+      }
+      ol#results {
+        margin: 0 0 24px;
+        padding-left: 22px;
+        font-size: 13px;
+        line-height: 1.9;
+      }
+      ol#results li.ok {
+        color: #166534;
+      }
+      ol#results li.no {
+        color: #b91c1c;
+        font-weight: 600;
+      }
+      .extra {
+        color: #6b7280;
+        font-size: 11.5px;
+        word-break: break-all;
+      }
+      h2 {
+        font-size: 14px;
+        margin: 20px 0 8px;
+      }
+      ul#actual {
+        margin: 0;
+        padding-left: 20px;
+        font-size: 12px;
+        line-height: 1.8;
+        color: #4b5563;
+        word-break: break-all;
+      }
+      /* 测试用图：保持可见，让浏览器渲染出真实的像素尺寸 */
+      #stage {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-start;
+        padding: 12px;
+        background: #fff;
+        border: 1px solid rgba(0, 0, 0, 0.08);
+        border-radius: 10px;
+      }
+      #stage img {
+        max-width: 120px;
+        max-height: 120px;
+        border: 1px solid #eee;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>提取逻辑自测</h1>
+    <p class="hint">
+      本页模拟电商详情页的图片形态（普通 img / 懒加载属性 / srcset / 背景图 / 平台尺寸后缀等），
+      直接调用 content.js 暴露的 <code>window.__EIE__</code> 纯函数做断言。图片由 test/serve.js 动态生成。
+    </p>
+
+    <div id="verdict">正在运行测试…</div>
+    <ol id="results"></ol>
+
+    <h2>实际提取到的图片（应为 10 张）</h2>
+    <ul id="actual"></ul>
+
+    <h2>页面中的测试素材</h2>
+    <div id="stage">
+      <!-- 1) 普通 img，应收录；t2 与 t1 相同，用于验证去重 -->
+      <img id="t1" src="/img/800x600.png" alt="t1" />
+      <img id="t2" src="/img/800x600.png" alt="t2" />
+
+      <!-- 2) 懒加载：src 是小占位图，真图在 data-src；元素被拉伸到 300x300 -->
+      <img id="t3" src="/img/1x1.png" data-src="/img/720x720.png" style="width: 300px; height: 300px" alt="t3" />
+
+      <!-- 3) srcset 两个候选，只应取最大的 900x900 -->
+      <img id="t4" srcset="/img/200x200.png 200w, /img/900x900.png 900w" style="width: 300px; height: 300px" alt="t4" />
+
+      <!-- 4) 1x1 像素图，应被过滤 -->
+      <img id="t5" src="/img/1x1.png" style="width: 300px; height: 300px" alt="t5" />
+
+      <!-- 5) 32x32，小于 100x100，应被过滤 -->
+      <img id="t6" src="/img/32x32.png" alt="t6" />
+
+      <!-- 6) 路径含 logo，应被过滤 -->
+      <img id="t7" src="/img/logo-600x600.png" alt="t7" />
+
+      <!-- 7) CSS 背景图，应收录；flex:none 避免被 flex 布局压缩，保证渲染尺寸就是 500x400 -->
+      <div id="t8" style="flex: none; width: 500px; height: 400px; background-image: url('/img/500x400.png'); background-size: cover"></div>
+
+      <!-- 8) 相对路径，应补全为绝对地址 -->
+      <img id="t9" src="../img/640x480.png" alt="t9" />
+
+      <!-- 9) picture：source 的 media 不匹配 → 浏览器回退到 img 的 src；
+           但 source 里的 srcset 仍应被单独收录 -->
+      <picture id="t10">
+        <source media="(min-width: 9999px)" srcset="/img/1024x1024.png" />
+        <img src="/img/300x300.png" alt="t10" />
+      </picture>
+
+      <!-- 10) 淘宝/天猫典型后缀，应还原为原图 /img/900x700.png -->
+      <img id="t11" src="/img/900x700.png_430x430q90.jpg" style="width: 300px; height: 300px" alt="t11" />
+
+      <!-- 11) 京东典型路径 /n1/ + s450x450_，应还原为 /img/n0/jfs/t1/abc.jpg -->
+      <img id="t12" src="/img/n1/s450x450_jfs/t1/abc.jpg" style="width: 300px; height: 300px" alt="t12" />
+
+      <!-- 12) display:none 的背景图，应被排除 -->
+      <div id="t13" style="display: none; width: 700px; height: 700px; background-image: url('/img/700x700.png')"></div>
+
+      <!-- 13) 淘宝懒加载属性 data-ks-lazyload，应收录 -->
+      <img id="t14" data-ks-lazyload="/img/800x800.png" style="width: 300px; height: 300px" alt="t14" />
+    </div>
+
+    <!-- 先加载被测脚本（它会暴露纯函数到 window.__EIE__），再跑断言 -->
+    <script src="../content.js"></script>
+    <script>
+      (function () {
+        'use strict';
+
+        const O = location.origin; // http://localhost:8088
+
+        const results = [];
+        function ok(name, cond, extra) {
+          results.push({ name: name, ok: !!cond, extra: extra || '' });
+        }
+
+        function runPureTests(E) {
+          // ---- absolutize：地址补全与非法协议过滤 ----
+          ok(
+            'absolutize：协议相对地址 // 自动补 https',
+            E.absolutize('//img.alicdn.com/a.jpg', O + '/') === 'https://img.alicdn.com/a.jpg',
+            E.absolutize('//img.alicdn.com/a.jpg', O + '/')
+          );
+          ok('absolutize：丢弃 data: 内联占位图', E.absolutize('data:image/png;base64,AAAA', O + '/') === '');
+          ok('absolutize：相对路径补成绝对地址', E.absolutize('/img/x.png', O + '/') === O + '/img/x.png');
+          ok('absolutize：空值与 javascript: 一律丢弃', E.absolutize('', O + '/') === '' && E.absolutize('javascript:void(0)', O + '/') === '');
+
+          // ---- upgradeToOriginal：三平台原图还原 ----
+          const taobao = E.upgradeToOriginal('https://img.alicdn.com/imgextra/i1/O1CN01abc.jpg_430x430q90.jpg');
+          ok('upgradeToOriginal：淘宝尺寸后缀被剥离', taobao === 'https://img.alicdn.com/imgextra/i1/O1CN01abc.jpg', taobao);
+
+          const jd = E.upgradeToOriginal('https://img14.360buyimg.com/n1/s450x450_jfs/t1/abc.jpg');
+          ok('upgradeToOriginal：京东 /n1/→/n0/ 且去掉缩放前缀', jd === 'https://img14.360buyimg.com/n0/jfs/t1/abc.jpg', jd);
+
+          const pdd = E.upgradeToOriginal('https://img.pddpic.com/gaudit/xxx.jpg?imageView2/2/w/450');
+          ok('upgradeToOriginal：拼多多七牛处理参数被去掉', pdd === 'https://img.pddpic.com/gaudit/xxx.jpg', pdd);
+
+          // ---- pickLargestFromSrcset ----
+          ok('pickLargestFromSrcset：按 w 描述符取最大', E.pickLargestFromSrcset('a.jpg 200w, b.jpg 900w') === 'b.jpg');
+          ok('pickLargestFromSrcset：按 x 描述符取最大', E.pickLargestFromSrcset('a.jpg 1x, b.jpg 2x') === 'b.jpg');
+
+          // ---- detectContext：平台与详情页判定 ----
+          ok('detectContext：淘宝商品详情页', E.detectContext('https://item.taobao.com/item.htm?id=123') === 'taobao');
+          ok('detectContext：天猫商品详情页', E.detectContext('https://detail.tmall.com/item.htm?id=123') === 'taobao');
+          ok('detectContext：京东商品详情页', E.detectContext('https://item.jd.com/100012043978.html') === 'jd');
+          ok('detectContext：拼多多商品页', E.detectContext('https://mobile.yangkeduo.com/goods.html?goods_id=123') === 'pinduoduo');
+          ok('detectContext：非目标站点返回 null', E.detectContext('https://www.baidu.com/s?wd=x') === null);
+          ok('detectContext：淘宝首页（非详情页）返回 null', E.detectContext('https://www.taobao.com/') === null);
+
+          // ---- measure ----
+          const m = E.measure(document.getElementById('t1'));
+          ok('measure：读到普通 img 的真实像素尺寸 800x600', m.known && m.w === 800 && m.h === 600, JSON.stringify(m));
+        }
+
+        function runCollectTests(E) {
+          const list = E.collectImages(document, window);
+          const urls = list.map(function (i) {
+            return i.url;
+          });
+          const has = function (p) {
+            return urls.indexOf(O + p) !== -1;
+          };
+          const countOf = function (p) {
+            return urls.filter(function (u) {
+              return u === O + p;
+            }).length;
+          };
+          const find = function (p) {
+            return list.find(function (i) {
+              return i.url === O + p;
+            });
+          };
+
+          ok('提取数量应为 10 张', list.length === 10, '实际 ' + list.length + ' 张');
+          ok('① 普通 img 被收录（/img/800x600.png）', has('/img/800x600.png'));
+          ok('① 同一张图被去重（只出现一次）', countOf('/img/800x600.png') === 1, '出现 ' + countOf('/img/800x600.png') + ' 次');
+          ok('② 懒加载 data-src 被收录（/img/720x720.png）', has('/img/720x720.png'));
+          ok('③ srcset 只取最大的候选（/img/900x900.png）', has('/img/900x900.png'));
+          ok('③ srcset 的小候选被丢弃（/img/200x200.png 不出现）', !has('/img/200x200.png'));
+          ok('④ 1x1 像素图被过滤', !urls.some(function (u) { return /1x1/.test(u); }));
+          ok('⑤ 小于 100x100 的图片被过滤（32x32）', !urls.some(function (u) { return /32x32/.test(u); }));
+          ok('⑥ 路径含 logo 的装饰图被过滤', !urls.some(function (u) { return /logo/.test(u); }));
+          ok('⑦ CSS 背景图被收录（/img/500x400.png）', has('/img/500x400.png'));
+          ok('⑧ 相对路径被补全为绝对地址（/img/640x480.png）', has('/img/640x480.png'));
+          ok('⑨ picture：img 回退图被收录（/img/300x300.png）', has('/img/300x300.png'));
+          ok('⑨ picture：source[srcset] 被单独收录（/img/1024x1024.png）', has('/img/1024x1024.png'));
+          ok('⑩ 淘宝尺寸后缀被还原为原图（/img/900x700.png）', has('/img/900x700.png') && !urls.some(function (u) { return /q90/.test(u); }));
+          ok('⑪ 京东 /n1/ 与 s450x450_ 被还原为原图', has('/img/n0/jfs/t1/abc.jpg') && !urls.some(function (u) { return /\/n1\//.test(u); }));
+          ok('⑫ display:none 的背景图被排除（/img/700x700.png 不出现）', !urls.some(function (u) { return /700x700/.test(u); }));
+          ok('⑬ data-ks-lazyload 懒加载属性被收录（/img/800x800.png）', has('/img/800x800.png'));
+
+          const i1 = find('/img/800x600.png');
+          ok('⑭ 普通 img 的尺寸信息正确（800×600）', !!i1 && i1.known && i1.width === 800 && i1.height === 600, i1 ? JSON.stringify(i1) : '未找到');
+
+          const i8 = find('/img/500x400.png');
+          ok('⑮ 背景图元素的尺寸信息正确（500×400）', !!i8 && i8.known && i8.width === 500 && i8.height === 400, i8 ? JSON.stringify(i8) : '未找到');
+
+          const i3 = find('/img/720x720.png');
+          ok('⑯ 懒加载未替换的图：尺寸标记为未知（不做误杀）', !!i3 && i3.known === false, i3 ? JSON.stringify(i3) : '未找到');
+
+          return list;
+        }
+
+        function render(list) {
+          const passed = results.filter(function (r) {
+            return r.ok;
+          }).length;
+          const total = results.length;
+          const allPass = passed === total;
+
+          const verdict = document.getElementById('verdict');
+          verdict.className = allPass ? 'pass' : 'fail';
+          verdict.textContent = (allPass ? '全部通过' : '存在失败断言') + '：' + passed + ' / ' + total;
+
+          const ol = document.getElementById('results');
+          ol.textContent = '';
+          results.forEach(function (r) {
+            const li = document.createElement('li');
+            li.className = r.ok ? 'ok' : 'no';
+            li.textContent = (r.ok ? 'PASS  ' : 'FAIL  ') + r.name;
+            if (!r.ok && r.extra) {
+              const span = document.createElement('span');
+              span.className = 'extra';
+              span.textContent = '  → ' + r.extra;
+              li.appendChild(span);
+            }
+            ol.appendChild(li);
+          });
+
+          const ul = document.getElementById('actual');
+          ul.textContent = '';
+          (list || []).forEach(function (i, idx) {
+            const li = document.createElement('li');
+            li.textContent =
+              idx + 1 + '. ' + i.url + '  [' + (i.known ? i.width + '×' + i.height : '尺寸未知') + ' · ' + i.source + ']';
+            ul.appendChild(li);
+          });
+
+          document.title = (allPass ? 'PASS ' : 'FAIL ') + passed + '/' + total + ' · 提取逻辑自测';
+
+          // 供自动化测试读取
+          window.__EIE_TEST__ = {
+            pass: passed,
+            fail: total - passed,
+            allPass: allPass,
+            results: results,
+            extracted: (list || []).map(function (i) {
+              return { url: i.url, width: i.width, height: i.height, known: i.known, source: i.source };
+            })
+          };
+        }
+
+        function run() {
+          const E = window.__EIE__;
+          if (!E) {
+            document.getElementById('verdict').className = 'fail';
+            document.getElementById('verdict').textContent = 'content.js 未加载成功（window.__EIE__ 不存在）';
+            return;
+          }
+          runPureTests(E);
+          const list = runCollectTests(E);
+          render(list);
+        }
+
+        // 等所有测试图真正加载完（naturalWidth 才有值），再执行断言
+        window.addEventListener('load', function () {
+          setTimeout(run, 300);
+        });
+      })();
+    </script>
+  </body>
+</html>
